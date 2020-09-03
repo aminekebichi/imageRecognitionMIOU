@@ -155,4 +155,66 @@ if (len(TEST_IMAGE_PATHS) > 1):
   #print (output_dict['detection_boxes'])
   #print (output_dict.get('detection_masks'))
 
-  
+import time
+import json
+
+total_time = 0.0;
+grbboxes_filenames=[]
+img_bbox_ids=[]
+filename_img_bbox_ids=[]
+
+def gr_bbox():
+    json_filename="C:\\Users\\amine\\Desktop\\EDIN\\instances_val2017.json"
+    array=[]
+    try:
+        with open(json_filename) as data_file:
+            data=json.load(data_file)
+            img_height=0
+            img_width=0
+            for each_axis in data['images']:
+                img_height = each_axis['height']
+                img_width = each_axis['width']
+                img_filename = each_axis['file_name']
+                grbboxes_filenames.append(img_filename)
+                image_id = each_axis['id']
+                filename_img_bbox_ids.append(image_id)
+                
+            if len(grbboxes_filenames) != len(filename_img_bbox_ids):
+                print ("these 2 should be the same length")
+            
+            for each_axis in data['annotations']:
+                image_id =  each_axis['image_id']
+                img_bbox_ids.append(image_id)
+                X = each_axis['bbox']
+                if image_id == 139:
+                    #print ("img id", image_id)
+                    print ("bbox", X)
+                tmp_bb=[0, 0, 0, 0]
+                tmp_bb[0]=X[2]/img_height
+                tmp_bb[1]=X[3]/img_width
+                tmp_bb[2]=X[0]/img_height
+                tmp_bb[3]=X[1]/img_width
+                X=tmp_bb
+                if image_id == 139:
+                    print ("bbox normalized", X)
+                array.append(X)
+                
+            if len(img_bbox_ids) != len(array):
+                print ("These 2 should also have same length")
+                
+    except:
+        print("Unexpected error", sys.exc_info()[0])
+        raise
+        
+    gr_bboxes = list()
+    #max_coord=np.max(array)
+    for bbox in array:
+        #print (bbox)
+        #bbox = [x/max_coord for x in bbox[:4]]
+        #bbox = [x for x in bbox[:4]]
+        #bbox = [x/256 for x in bbox[:4]]
+        gr_bboxes.append(bbox)
+        
+    return gr_bboxes
+        
+gr_bboxes = gr_bbox()
