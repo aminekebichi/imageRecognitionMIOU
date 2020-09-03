@@ -218,3 +218,12 @@ def gr_bbox():
     return gr_bboxes
         
 gr_bboxes = gr_bbox()
+
+def find_img_id(img_filename):
+    countl=0
+    for filen in grbboxes_filenames:
+        if img_filename == filen:
+            return countl
+        countl = countl + 1
+        
+    return -1
