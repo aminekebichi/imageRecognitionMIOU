@@ -268,3 +268,53 @@ def get_iou(pred_bboxes,gr_bboxes,img_id_to_check):
                 return iou
     
     return iou
+
+iou_out = list()
+pred_bboxes = list()
+count2=0
+
+#mylp = [TEST_IMAGE_PATHS[0]]
+for image_path in TEST_IMAGE_PATHS:
+#for image_path in mylp:
+    image = Image.open(join(PATH_TO_TEST_IMAGES_DIR, image_path))
+    
+    print ("Processing image ")
+    print (image_path)
+    image_np = load_image_into_numpy_array(image)
+    image_np_expanded = np.expand_dims(image_np, axis=0)
+    # Actual detection.
+    t1 = time.time()
+    output_dict = run_inference_for_single_image(image_np, detection_graph)
+    #print ("pred boxes", output_dict['detection_boxes'])
+    
+    loc=find_img_id(image_path)
+    if loc==-1:
+        print ("index was found to be -1 , something wrong")
+    print ("Processing img with ID")
+    img_id_to_check=filename_img_bbox_ids[loc]
+    print (img_id_to_check)
+            
+    for mybbox in output_dict['detection_boxes']:
+        list1 = []
+        list1.append(mybbox)    
+        iou=get_iou(list1, gr_bboxes,img_id_to_check)
+        if iou > 0.1: # count any coverage
+            iou_out.append(iou)
+        pred_bboxes.append(mybbox)
+        t2 = time.time()
+        #print("time ", t2 - t1)
+        total_time += (t2 - t1)
+        count2 = count2 + 1
+        
+    print('mean time=')
+    print(total_time/count2)
+
+print('*'*40)
+print ("Model was right that many times")
+print(len(iou_out))
+print ("Total predicted boxes")
+print (len(pred_bboxes))
+print ("Total gt boxes")
+print(len(gr_bboxes))
+print("The precision score is: {}".format(float(len(iou_out)/len(pred_bboxes))))
+print('*'*40)
