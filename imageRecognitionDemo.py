@@ -86,7 +86,6 @@ IMAGE_SIZE = (12, 8)
 def run_inference_for_single_image(image, graph):
   with graph.as_default():
     with tf.Session() as sess:
-      # Get handles to input and output tensors
       ops = tf.get_default_graph().get_operations()
       all_tensor_names = {output.name for op in ops for output in op.outputs}
       tensor_dict = {}
@@ -99,10 +98,8 @@ def run_inference_for_single_image(image, graph):
           tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(
               tensor_name)
       if 'detection_masks' in tensor_dict:
-        # The following processing is only for single image
         detection_boxes = tf.squeeze(tensor_dict['detection_boxes'], [0])
         detection_masks = tf.squeeze(tensor_dict['detection_masks'], [0])
-        # Reframe is required to translate mask from box coordinates to image coordinates and fit the image size.
         real_num_detection = tf.cast(tensor_dict['num_detections'][0], tf.int32)
         detection_boxes = tf.slice(detection_boxes, [0, 0], [real_num_detection, -1])
         detection_masks = tf.slice(detection_masks, [0, 0, 0], [real_num_detection, -1, -1])
@@ -110,16 +107,13 @@ def run_inference_for_single_image(image, graph):
             detection_masks, detection_boxes, image.shape[0], image.shape[1])
         detection_masks_reframed = tf.cast(
             tf.greater(detection_masks_reframed, 0.5), tf.uint8)
-        # Follow the convention by adding back the batch dimension
         tensor_dict['detection_masks'] = tf.expand_dims(
             detection_masks_reframed, 0)
       image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
 
-      # Run inference
       output_dict = sess.run(tensor_dict,
                              feed_dict={image_tensor: np.expand_dims(image, 0)})      
         
-      # all outputs are float32 numpy arrays, so convert types as appropriate
       output_dict['num_detections'] = int(output_dict['num_detections'][0])
       output_dict['detection_classes'] = output_dict[
           'detection_classes'][0].astype(np.uint8)
@@ -129,18 +123,12 @@ def run_inference_for_single_image(image, graph):
         output_dict['detection_masks'] = output_dict['detection_masks'][0]
   return output_dict
 
-#for image_path in TEST_IMAGE_PATHS:
 if (len(TEST_IMAGE_PATHS) > 1):
   image_path = TEST_IMAGE_PATHS[0]
   image = Image.open(join(PATH_TO_TEST_IMAGES_DIR, image_path))
-  # the array based representation of the image will be used later in order to prepare the
-  # result image with boxes and labels on it.
   image_np = load_image_into_numpy_array(image)
-  # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
   image_np_expanded = np.expand_dims(image_np, axis=0)
-  # Actual detection.
   output_dict = run_inference_for_single_image(image_np, detection_graph)
-  # Visualization of the results of a detection.
   vis_util.visualize_boxes_and_labels_on_image_array(
       image_np,
       output_dict['detection_boxes'],
@@ -152,8 +140,6 @@ if (len(TEST_IMAGE_PATHS) > 1):
       line_thickness=8)
   plt.figure(figsize=IMAGE_SIZE)
   plt.imshow(image_np)
-  #print (output_dict['detection_boxes'])
-  #print (output_dict.get('detection_masks'))
 
 import time
 import json
@@ -207,12 +193,7 @@ def gr_bbox():
         raise
         
     gr_bboxes = list()
-    #max_coord=np.max(array)
     for bbox in array:
-        #print (bbox)
-        #bbox = [x/max_coord for x in bbox[:4]]
-        #bbox = [x for x in bbox[:4]]
-        #bbox = [x/256 for x in bbox[:4]]
         gr_bboxes.append(bbox)
         
     return gr_bboxes
@@ -229,38 +210,26 @@ def find_img_id(img_filename):
     return -1
 
 def bb_IOU(boxA, boxB):
-    # determine the (x, y)-coordinates of the intersection rectangle
     xA = max(boxA[0], boxB[0])
     yA = max(boxA[1], boxB[1])
     xB = min(boxA[2], boxB[2])
     yB = min(boxA[3], boxB[3])
 
-    # compute the area of intersection rectangle
     interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
     if interArea == 0:
         return 0
-    # compute the area of both the prediction and ground-truth
-    # rectangles
     boxAArea = abs((boxA[2] - boxA[0]) * (boxA[3] - boxA[1]))
     boxBArea = abs((boxB[2] - boxB[0]) * (boxB[3] - boxB[1]))
 
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
     iou = interArea / float(boxAArea + boxBArea - interArea)
 
-    # return the intersection over union value
     return iou
 
 def get_iou(pred_bboxes,gr_bboxes,img_id_to_check):
     iou=0
     
     for pred_box in pred_bboxes:  
-        for gr_box in gr_bboxes: 
-            #print ("this is one pred box")
-            #print (pred_box)
-            #print ("this is one gr_box")
-            #print (gr_box)                
+        for gr_box in gr_bboxes:            
             iou = bb_IOU(pred_box, gr_box)  
             if iou > 0:
                 print ("IOU is")
@@ -273,19 +242,15 @@ iou_out = list()
 pred_bboxes = list()
 count2=0
 
-#mylp = [TEST_IMAGE_PATHS[0]]
 for image_path in TEST_IMAGE_PATHS:
-#for image_path in mylp:
     image = Image.open(join(PATH_TO_TEST_IMAGES_DIR, image_path))
     
     print ("Processing image ")
     print (image_path)
     image_np = load_image_into_numpy_array(image)
     image_np_expanded = np.expand_dims(image_np, axis=0)
-    # Actual detection.
     t1 = time.time()
     output_dict = run_inference_for_single_image(image_np, detection_graph)
-    #print ("pred boxes", output_dict['detection_boxes'])
     
     loc=find_img_id(image_path)
     if loc==-1:
@@ -302,7 +267,6 @@ for image_path in TEST_IMAGE_PATHS:
             iou_out.append(iou)
         pred_bboxes.append(mybbox)
         t2 = time.time()
-        #print("time ", t2 - t1)
         total_time += (t2 - t1)
         count2 = count2 + 1
         
